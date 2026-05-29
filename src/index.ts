@@ -7,6 +7,7 @@ import { runClaude } from './runner/index.js'
 import { checkSignificance } from './gate/index.js'
 import { summarize, DEFAULT_SUMMARIZER_MODEL, DEFAULT_SUMMARIZER_THRESHOLD_CHARS } from './summarizer/index.js'
 import { writeFileOutput } from './output/file.js'
+import { detectGithubRepo, createGithubIssue, interpolateTitle } from './output/github-issue.js'
 import { basename } from 'node:path'
 
 // Register all available Session Readers
@@ -26,7 +27,11 @@ program
   .option('--summarizer-model <model>', `Model for the summarization pass (default: ${DEFAULT_SUMMARIZER_MODEL})`, DEFAULT_SUMMARIZER_MODEL)
   .option('--summarizer-threshold-chars <n>', `Session size above which summarization runs (default: ${DEFAULT_SUMMARIZER_THRESHOLD_CHARS})`, String(DEFAULT_SUMMARIZER_THRESHOLD_CHARS))
   .option('--output-file <path>', 'Write runner output to this path. Supports {{SESSION_ID}} substitution')
-  .action(async (options: { claudeSessionId?: string; promptFile?: string; model?: string; minSessionChars?: string; force?: boolean; summarizerModel?: string; summarizerThresholdChars?: string; outputFile?: string }) => {
+  .option('--create-issue', 'Create a GitHub issue with the runner output as the body')
+  .option('--github-repo <owner/repo>', 'GitHub repository (owner/repo). Auto-detected from git remote origin if not set')
+  .option('--github-labels <labels>', 'Comma-separated labels for the created issue (default: retroloop)', 'retroloop')
+  .option('--github-title <template>', 'Title template for the created issue. Supports {{SESSION_ID}} and {{DATE}} (default: "Retro: {{SESSION_ID}} — {{DATE}}")', 'Retro: {{SESSION_ID}} — {{DATE}}')
+  .action(async (options: { claudeSessionId?: string; promptFile?: string; model?: string; minSessionChars?: string; force?: boolean; summarizerModel?: string; summarizerThresholdChars?: string; outputFile?: string; createIssue?: boolean; githubRepo?: string; githubLabels?: string; githubTitle?: string }) => {
     const presentFlags = new Set<string>()
 
     if (options.claudeSessionId !== undefined) {
@@ -105,6 +110,22 @@ program
           sessionId: manifest.sessionId,
           content: result.stdout,
         })
+      }
+
+      // Step 9: Create GitHub issue if --create-issue is set
+      if (options.createIssue) {
+        const repo = options.githubRepo ?? detectGithubRepo(cwd)
+        const title = interpolateTitle(options.githubTitle ?? 'Retro: {{SESSION_ID}} — {{DATE}}', {
+          sessionId: manifest.sessionId,
+          date: manifest.date,
+        })
+        const issueUrl = createGithubIssue({
+          repo,
+          title,
+          labels: options.githubLabels ?? 'retroloop',
+          body: result.stdout,
+        })
+        process.stderr.write(`retroloop: created issue ${issueUrl}\n`)
       }
 
       if (result.exitCode !== 0) {
