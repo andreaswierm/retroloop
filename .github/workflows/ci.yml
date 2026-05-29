@@ -10,10 +10,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # The project is scaffolded by the walking-skeleton issue. Until package.json
+      # exists, there is nothing to lint or test, so CI passes trivially. Once it
+      # exists, the real npm ci / lint / test run and gate the merge.
+      - id: pkg
+        run: |
+          if [ -f package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No package.json yet — skipping lint/test (pre-scaffold)."
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.pkg.outputs.exists == 'true'
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
+
+      - if: steps.pkg.outputs.exists == 'true'
+        run: npm ci
+      - if: steps.pkg.outputs.exists == 'true'
+        run: npm run lint
+      - if: steps.pkg.outputs.exists == 'true'
+        run: npm test
