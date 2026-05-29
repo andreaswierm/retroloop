@@ -1,0 +1,4 @@
+{"type":"user","uuid":"user-001","parentUuid":null,"timestamp":"2024-01-15T10:00:03.000Z","message":{"role":"user","content":"Read the file README.md"}}
+{"type":"assistant","uuid":"asst-001","parentUuid":"user-001","timestamp":"2024-01-15T10:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"I'll read that file for you."},{"type":"tool_use","id":"tool-001","name":"Read","input":{"file_path":"README.md"}}],"model":"claude-opus-4-5"}}
+{"type":"tool_result","uuid":"tool-res-001","parentUuid":"asst-001","timestamp":"2024-01-15T10:00:06.000Z","message":{"role":"tool","content":"# My Project\n\nThis is a project."}}
+{"type":"assistant","uuid":"asst-002","parentUuid":"tool-res-001","timestamp":"2024-01-15T10:00:08.000Z","message":{"role":"assistant","content":[{"type":"text","text":"The README says this is 'My Project'."}],"model":"claude-opus-4-5"}}
