@@ -88,7 +88,7 @@ Claude Code hook configuration:
 ```
 
 ### Manual Mode
-stdin is empty. `--session-id` is required. retroloop resolves the transcript
+stdin is empty. `--claude-session-id` is required. retroloop resolves the transcript
 path by transforming CWD: replace every `/` with `-`, then look up
 `~/.claude/projects/<transformed-cwd>/<session-id>.jsonl`.
 
@@ -224,6 +224,7 @@ interface PromptContext {
   SESSION_ID: string
   DATE: string        // YYYY-MM-DD
   PROJECT_NAME: string  // basename of CWD
+  PROVIDER: string
 }
 
 // runner/claude.ts
@@ -261,7 +262,7 @@ interface FileOutputOptions {
 ### Required in Manual Mode, auto-resolved in Hook Mode
 | Flag | Description |
 |---|---|
-| `--session-id <id>` | Session UUID to process |
+| `--claude-session-id <id>` | Session UUID to process |
 
 ### Optional — prompt
 | Flag | Default | Description |
@@ -305,6 +306,7 @@ Available in `--prompt-file` templates and `--github-title`:
 | `{{SESSION_ID}}` | The session UUID |
 | `{{DATE}}` | Today's date, `YYYY-MM-DD` |
 | `{{PROJECT_NAME}}` | `basename` of the project CWD |
+| `{{PROVIDER}}` | The AI provider name |
 
 ---
 
