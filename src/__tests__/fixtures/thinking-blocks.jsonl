@@ -1,0 +1,2 @@
+{"type":"user","uuid":"u1","parentUuid":null,"timestamp":"2024-01-15T10:00:00Z","message":{"role":"user","content":"Solve this hard problem"}}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","timestamp":"2024-01-15T10:00:01Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Let me think about this carefully. The user wants me to solve a hard problem. I should consider multiple approaches..."},{"type":"text","text":"Here is my answer to the hard problem."}],"model":"claude-opus-4-5"}}
