@@ -4,6 +4,7 @@ import { claudeSessionReader } from './readers/claude/index.js'
 import { loadPrompt } from './prompt/loader.js'
 import { interpolate, injectSessionContent } from './prompt/interpolator.js'
 import { runClaude } from './runner/index.js'
+import { checkSignificance } from './gate/index.js'
 import { basename } from 'node:path'
 
 // Register all available Session Readers
@@ -18,7 +19,9 @@ program
   .option('--claude-session-id <id>', 'Claude Code session UUID to process')
   .option('--prompt-file <path>', 'Path to a custom prompt template (default: bundled retrospective prompt)')
   .option('--model <model>', 'Model for the main runner (default: claude CLI default)')
-  .action(async (options: { claudeSessionId?: string; promptFile?: string; model?: string }) => {
+  .option('--min-session-chars <n>', 'Sessions with fewer chars than this are skipped (default: 1000)', '1000')
+  .option('--force', 'Bypass the significance gate regardless of session size')
+  .action(async (options: { claudeSessionId?: string; promptFile?: string; model?: string; minSessionChars?: string; force?: boolean }) => {
     const presentFlags = new Set<string>()
 
     if (options.claudeSessionId !== undefined) {
@@ -42,6 +45,18 @@ program
     try {
       // Step 1: Read + format session
       const { manifest, markdown } = await reader.read({ sessionId, cwd })
+
+      // Significance gate — skip trivial sessions before incurring any Runner cost
+      const minSessionChars = parseInt(options.minSessionChars ?? '1000', 10)
+      const gateResult = checkSignificance({
+        bodyChars: markdown.length,
+        minSessionChars,
+        force: options.force === true,
+      })
+      if (!gateResult.pass) {
+        process.stderr.write(`retroloop: ${gateResult.reason}\n`)
+        process.exit(0)
+      }
 
       // Step 2: Load prompt template
       const promptTemplate = await loadPrompt(options.promptFile)
