@@ -166,8 +166,13 @@ function renderToolResult(
  * Renders text content from an Anthropic message's content blocks (assistant messages).
  * - thinking blocks are dropped
  * - tool_use blocks are rendered with truncated inputs
+ * - when subagentMap is provided, matching tool_use blocks have the subagent
+ *   transcript appended inline immediately after the tool call line
  */
-function renderAssistantContent(content: string | ContentBlock[] | undefined): string {
+function renderAssistantContentWithSubagents(
+  content: string | ContentBlock[] | undefined,
+  subagentMap?: Map<string, string>,
+): string {
   if (!content) return ''
 
   if (typeof content === 'string') {
@@ -184,11 +189,19 @@ function renderAssistantContent(content: string | ContentBlock[] | undefined): s
       continue
     } else if (block.type === 'tool_use') {
       parts.push(renderToolUseBlock(block))
+      // If this tool_use has a matching subagent, embed it inline
+      if (subagentMap && typeof block.id === 'string') {
+        const subagentSection = subagentMap.get(block.id)
+        if (subagentSection) {
+          parts.push(subagentSection)
+        }
+      }
     }
   }
 
   return parts.join('\n\n')
 }
+
 
 /**
  * Renders a tool_result event's content using filtering rules.
@@ -223,6 +236,23 @@ function renderToolResultEvent(
 }
 
 /**
+ * Options for formatSessionToMarkdown.
+ */
+export interface FormatOptions {
+  /**
+   * The Markdown heading level for turn headings (default: 2 → "## Turn N").
+   * Subagent transcripts use 4 so their turns nest visually below the parent.
+   */
+  headingLevel?: number
+  /**
+   * Optional map from tool_use id → pre-rendered subagent Markdown.
+   * When set, tool_use blocks whose id appears in the map will have the
+   * subagent section appended inline immediately after the tool call line.
+   */
+  subagentMap?: Map<string, string>
+}
+
+/**
  * Renders a list of SessionEvents into a Markdown body string.
  *
  * Filtering rules applied (PLAN.md §6):
@@ -234,8 +264,16 @@ function renderToolResultEvent(
  * - tool_result for Bash (success) > 500 chars: replaced with "[Bash output truncated: N chars]"
  * - tool_result that is an error: included in full
  * - tool_result for Write/Edit/Create: included in full
+ *
+ * When `options.subagentMap` is provided, subagent transcripts are embedded
+ * inline at the point of the matching `tool_use` invocation.
  */
-export function formatSessionToMarkdown(events: SessionEvent[]): string {
+export function formatSessionToMarkdown(
+  events: SessionEvent[],
+  options: FormatOptions = {},
+): string {
+  const { headingLevel = 2, subagentMap } = options
+  const hashes = '#'.repeat(headingLevel)
   const toolUseMap = buildToolUseMap(events)
   const lines: string[] = []
   let turnIndex = 0
@@ -248,11 +286,14 @@ export function formatSessionToMarkdown(events: SessionEvent[]): string {
     if (event.type === 'user' || event.type === 'assistant') {
       turnIndex++
       const role = event.type === 'user' ? 'User' : 'Assistant'
-      lines.push(`## Turn ${turnIndex} — ${role}`)
+      lines.push(`${hashes} Turn ${turnIndex} — ${role}`)
       lines.push('')
 
       if (msg) {
-        const rendered = renderAssistantContent(msg.content)
+        const rendered = renderAssistantContentWithSubagents(
+          msg.content,
+          subagentMap,
+        )
         if (rendered.trim()) {
           lines.push(rendered)
           lines.push('')
