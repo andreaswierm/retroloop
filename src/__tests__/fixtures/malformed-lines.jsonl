@@ -1,0 +1,5 @@
+{"type":"user","uuid":"user-001","parentUuid":null,"timestamp":"2024-01-15T10:00:03.000Z","message":{"role":"user","content":"Hello"}}
+not valid json at all
+{"broken: json}
+{"type":"assistant","uuid":"asst-001","parentUuid":"user-001","timestamp":"2024-01-15T10:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Hi there!"}],"model":"claude-sonnet-4"}}
+{"missing_type_field":true,"uuid":"x-001"}

@@ -1,0 +1,7 @@
+{"type":"system","uuid":"sys-001","parentUuid":null,"timestamp":"2024-01-15T10:00:00.000Z","message":{"role":"system","content":"You are Claude Code.","cliVersion":"1.2.3"}}
+{"type":"mode","uuid":"mode-001","parentUuid":null,"timestamp":"2024-01-15T10:00:01.000Z","message":{"mode":"auto"}}
+{"type":"permission-mode","uuid":"perm-001","parentUuid":null,"timestamp":"2024-01-15T10:00:02.000Z","message":{"permissionMode":"default"}}
+{"type":"user","uuid":"user-001","parentUuid":null,"timestamp":"2024-01-15T10:00:03.000Z","message":{"role":"user","content":"Hello, can you help me write a function?","model":null}}
+{"type":"assistant","uuid":"asst-001","parentUuid":"user-001","timestamp":"2024-01-15T10:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Sure! I'd be happy to help you write a function. What kind of function do you need?"}],"model":"claude-opus-4-5"}}
+{"type":"user","uuid":"user-002","parentUuid":"asst-001","timestamp":"2024-01-15T10:00:10.000Z","message":{"role":"user","content":"A function that adds two numbers."}}
+{"type":"assistant","uuid":"asst-002","parentUuid":"user-002","timestamp":"2024-01-15T10:00:12.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Here's a simple function:\n\n```typescript\nfunction add(a: number, b: number): number {\n  return a + b\n}\n```"}],"model":"claude-opus-4-5"}}
