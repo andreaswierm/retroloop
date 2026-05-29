@@ -407,7 +407,7 @@ executes, output goes to stdout.
 - [ ] `--github-repo` auto-detect + error handling
 
 ### Phase 3 — Summarizer
-- [ ] `session/summarizer.ts` — summarization pass via cheap model
+- [ ] `summarizer/index.ts` — summarization pass via cheap model
 - [ ] `--summarizer-model` + `--summarizer-threshold-chars` flags
 - [ ] Summarizer prompt (bundled, not user-configurable)
 
