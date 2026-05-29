@@ -16,15 +16,19 @@ through their prompt. retroloop handles collection, summarization, and routing.
 retroloop/
 ├── src/
 │   ├── index.ts                  # CLI entry point — commander setup, flag parsing
-│   ├── session/
-│   │   ├── resolve.ts            # locates transcript path from session-id + CWD
-│   │   ├── reader.ts             # parses .jsonl into typed SessionEvents
-│   │   ├── formatter.ts          # renders SessionEvents → Markdown string
-│   │   └── summarizer.ts        # runs cheap model to condense large sessions
-│   ├── subagents/
-│   │   └── embedder.ts           # reads subagent/ dir, embeds transcripts inline
+│   ├── readers/
+│   │   ├── types.ts              # SessionReader interface, SessionManifest type
+│   │   ├── manifest.ts           # renderManifest() — stamps manifest as Markdown header
+│   │   ├── registry.ts           # maps provider flags to reader implementations
+│   │   └── claude/
+│   │       ├── index.ts          # ClaudeReader — implements SessionReader interface
+│   │       ├── path-resolver.ts  # locates transcript path from session-id + CWD
+│   │       ├── transcript-parser.ts  # parses .jsonl into typed SessionEvents
+│   │       └── session-formatter.ts  # renders SessionEvents → Markdown string (with subagent embedding)
 │   ├── runner/
 │   │   └── claude.ts             # spawns `claude -p` from project CWD
+│   ├── summarizer/
+│   │   └── index.ts              # runs cheap model to condense large sessions
 │   ├── output/
 │   │   ├── file.ts               # writes runner stdout to a file path
 │   │   └── github-issue.ts       # calls `gh issue create` with runner stdout
@@ -101,7 +105,7 @@ Example: CWD `/Users/andreas/projects/bits` → looks in
 
 ```
 stdin? ──yes──▶ parse hook payload ──▶ transcript_path, session_id, cwd
-        no  ──▶ require --session-id ──▶ resolve path via CWD transform
+        no  ──▶ require --claude-session-id ──▶ resolve path via CWD transform
 
 [Significance gate]
   format session → count chars
@@ -117,6 +121,9 @@ stdin? ──yes──▶ parse hook payload ──▶ transcript_path, session_
   if FormattedSession.chars > --summarizer-threshold-chars:
     run `claude -p <summarizer-prompt>` with FormattedSession path
     → SummarizedSession replaces FormattedSession as runner input
+    → manifest.summarized is set to true HERE, after summarization completes
+      (the Session Reader must NOT set summarized — it has no knowledge of
+       whether summarization will occur; the pipeline owns this flag)
 
 [Step 3] Load + interpolate prompt
   load --prompt-file or bundled default.md
@@ -195,7 +202,29 @@ These limits are not configurable in v1 — keep it simple.
 ## 7. TypeScript interfaces
 
 ```typescript
-// session/reader.ts
+// readers/types.ts
+interface SessionManifest {
+  provider: string
+  cliVersion?: string
+  sessionId: string
+  projectName: string
+  date: string          // YYYY-MM-DD
+  model?: string
+  turnCount: number
+  subagentCount: number
+  summarized: boolean   // set by the pipeline AFTER the Summarizer step, never by the reader
+}
+
+interface SessionReader {
+  provider: string      // e.g. "claude-code"
+  flag: string          // e.g. "--claude-session-id"
+  read(opts: { sessionId: string; cwd: string; transcriptPath?: string }): Promise<{
+    manifest: SessionManifest
+    markdown: string
+  }>
+}
+
+// readers/claude/transcript-parser.ts
 interface SessionEvent {
   type: 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'system' | string
   uuid: string
@@ -204,19 +233,11 @@ interface SessionEvent {
   message: unknown  // raw Anthropic message shape
 }
 
-// subagents/embedder.ts
+// readers/claude/session-formatter.ts (subagent embedding is internal to this module)
 interface SubagentMeta {
   agentType: string
   description: string
   toolUseId: string
-}
-
-// session/formatter.ts
-interface FormattedSession {
-  sessionId: string
-  content: string   // full Markdown string
-  chars: number
-  turnCount: number
 }
 
 // prompt/interpolator.ts
@@ -368,10 +389,13 @@ available in user prompt templates.)
 **Goal:** hook runs, session is collected with subagents, default prompt
 executes, output goes to stdout.
 
-- [ ] `session/reader.ts` — parse `.jsonl` into `SessionEvent[]`
-- [ ] `session/formatter.ts` — render to Markdown with filtering rules
-- [ ] `subagents/embedder.ts` — embed subagent transcripts inline
-- [ ] `session/resolve.ts` — Hook Mode + Manual Mode path resolution
+- [ ] `readers/types.ts` — `SessionReader` interface and `SessionManifest` type
+- [ ] `readers/manifest.ts` — `renderManifest()` stamps manifest as Markdown header
+- [ ] `readers/registry.ts` — maps provider flags to reader implementations
+- [ ] `readers/claude/transcript-parser.ts` — parse `.jsonl` into `SessionEvent[]`
+- [ ] `readers/claude/session-formatter.ts` — render to Markdown with filtering rules and subagent embedding
+- [ ] `readers/claude/path-resolver.ts` — Hook Mode + Manual Mode path resolution
+- [ ] `readers/claude/index.ts` — `ClaudeReader` implementing `SessionReader`
 - [ ] `runner/claude.ts` — spawn `claude -p` from CWD
 - [ ] `prompt/loader.ts` + `prompt/interpolator.ts` + `prompt/default.md`
 - [ ] `index.ts` — commander setup, significance gate, pipeline orchestration
