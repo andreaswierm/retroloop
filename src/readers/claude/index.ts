@@ -8,11 +8,13 @@ import {
   countTurns,
   formatSessionToMarkdown,
 } from './session-formatter.js'
+import { loadSubagents } from './subagent-embedder.js'
 
 /**
  * The Claude Code Session Reader.
  * Handles path resolution, transcript parsing, and Markdown formatting
- * for Claude Code `.jsonl` transcripts.
+ * for Claude Code `.jsonl` transcripts, with subagent transcripts embedded
+ * inline at the point of their `Agent` tool call invocation.
  */
 export const claudeSessionReader: SessionReader = {
   provider: 'claude-code',
@@ -29,8 +31,11 @@ export const claudeSessionReader: SessionReader = {
     const turnCount = countTurns(events)
     const projectName = basename(cwd)
 
-    // For v1, subagent counting is a placeholder (subagent embedding is a future slice)
-    const subagentCount = 0
+    // Load and embed subagents inline
+    const { rendered: subagentMap, count: subagentCount } = loadSubagents(
+      resolvedPath,
+      sessionId,
+    )
 
     const today = new Date()
     const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
@@ -47,7 +52,7 @@ export const claudeSessionReader: SessionReader = {
       summarized: false,
     }
 
-    const markdown = formatSessionToMarkdown(events)
+    const markdown = formatSessionToMarkdown(events, { subagentMap })
 
     return { manifest, markdown }
   },

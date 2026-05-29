@@ -1,0 +1,2 @@
+{"type":"user","uuid":"or-user-001","parentUuid":null,"timestamp":"2024-01-15T10:00:50.000Z","message":{"role":"user","content":"Do something"}}
+{"type":"assistant","uuid":"or-asst-001","parentUuid":"or-user-001","timestamp":"2024-01-15T10:00:55.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Done."}],"model":"claude-haiku-4-5"}}

@@ -1,0 +1,5 @@
+{
+  "agentType": "helper",
+  "description": "Do something unrelated",
+  "toolUseId": "tool-use-no-match"
+}
