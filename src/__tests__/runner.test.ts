@@ -1,15 +1,22 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { EventEmitter } from 'node:events'
 
 // Mock node:child_process before importing the module under test
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
+  spawnSync: vi.fn(),
 }))
 
-import { spawn } from 'node:child_process'
-import { runClaude } from '../runner/index.js'
+import { spawn, spawnSync } from 'node:child_process'
+import { runClaude, assertClaudeCli } from '../runner/index.js'
 
 const mockSpawn = spawn as ReturnType<typeof vi.fn>
+const mockSpawnSync = spawnSync as ReturnType<typeof vi.fn>
+
+beforeEach(() => {
+  // By default, claude CLI is available (spawnSync returns status 0)
+  mockSpawnSync.mockReturnValue({ status: 0, stdout: 'claude 1.0.0', stderr: '', error: undefined })
+})
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -132,5 +139,72 @@ describe('runClaude()', () => {
 
     const result = await runClaude({ prompt: 'p', cwd: '/project' })
     expect(result.exitCode).toBe(1)
+  })
+
+  it('throws when claude CLI is not found (ENOENT error)', async () => {
+    mockSpawnSync.mockReturnValueOnce({
+      status: null,
+      stdout: '',
+      stderr: '',
+      error: new Error('spawn ENOENT'),
+    })
+
+    await expect(runClaude({ prompt: 'p', cwd: '/project' })).rejects.toThrow(
+      'claude CLI not found. Install it from https://claude.ai/download'
+    )
+  })
+
+  it('throws when claude CLI spawnSync returns null status (not on PATH)', async () => {
+    mockSpawnSync.mockReturnValueOnce({
+      status: null,
+      stdout: '',
+      stderr: '',
+      error: undefined,
+    })
+
+    await expect(runClaude({ prompt: 'p', cwd: '/project' })).rejects.toThrow(
+      'claude CLI not found. Install it from https://claude.ai/download'
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// assertClaudeCli()
+// ---------------------------------------------------------------------------
+
+describe('assertClaudeCli()', () => {
+  it('does not throw when claude CLI is available', () => {
+    mockSpawnSync.mockReturnValueOnce({ status: 0, stdout: 'claude 1.0.0', stderr: '', error: undefined })
+    expect(() => assertClaudeCli()).not.toThrow()
+  })
+
+  it('throws a clear error when spawnSync returns an error (ENOENT)', () => {
+    mockSpawnSync.mockReturnValueOnce({
+      status: null,
+      stdout: '',
+      stderr: '',
+      error: new Error('spawn ENOENT'),
+    })
+    expect(() => assertClaudeCli()).toThrow(
+      'claude CLI not found. Install it from https://claude.ai/download'
+    )
+  })
+
+  it('throws a clear error when spawnSync returns null status (not on PATH)', () => {
+    mockSpawnSync.mockReturnValueOnce({
+      status: null,
+      stdout: '',
+      stderr: '',
+      error: undefined,
+    })
+    expect(() => assertClaudeCli()).toThrow(
+      'claude CLI not found. Install it from https://claude.ai/download'
+    )
+  })
+
+  it('does not throw for non-zero exit status (CLI found but errored)', () => {
+    mockSpawnSync.mockReturnValueOnce({ status: 1, stdout: '', stderr: 'error', error: undefined })
+    // Non-zero status still means the binary was found
+    expect(() => assertClaudeCli()).not.toThrow()
   })
 })

@@ -1,12 +1,13 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { EventEmitter } from 'node:events'
 
 // Mock node:child_process before importing the module under test
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
+  spawnSync: vi.fn(),
 }))
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import {
   shouldSummarize,
   summarize,
@@ -15,6 +16,12 @@ import {
 } from '../summarizer/index.js'
 
 const mockSpawn = spawn as ReturnType<typeof vi.fn>
+const mockSpawnSync = spawnSync as ReturnType<typeof vi.fn>
+
+beforeEach(() => {
+  // By default, claude CLI is available (spawnSync returns status 0)
+  mockSpawnSync.mockReturnValue({ status: 0, stdout: 'claude 1.0.0', stderr: '', error: undefined })
+})
 
 afterEach(() => {
   vi.clearAllMocks()
