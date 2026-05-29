@@ -8,6 +8,7 @@ import { checkSignificance } from './gate/index.js'
 import { summarize, DEFAULT_SUMMARIZER_MODEL, DEFAULT_SUMMARIZER_THRESHOLD_CHARS } from './summarizer/index.js'
 import { writeFileOutput } from './output/file.js'
 import { detectGithubRepo, createGithubIssue, interpolateTitle } from './output/github-issue.js'
+import { readHookPayload } from './hook/index.js'
 import { basename } from 'node:path'
 
 // Register all available Session Readers
@@ -32,29 +33,46 @@ program
   .option('--github-labels <labels>', 'Comma-separated labels for the created issue (default: retroloop)', 'retroloop')
   .option('--github-title <template>', 'Title template for the created issue. Supports {{SESSION_ID}} and {{DATE}} (default: "Retro: {{SESSION_ID}} — {{DATE}}")', 'Retro: {{SESSION_ID}} — {{DATE}}')
   .action(async (options: { claudeSessionId?: string; promptFile?: string; model?: string; minSessionChars?: string; force?: boolean; summarizerModel?: string; summarizerThresholdChars?: string; outputFile?: string; createIssue?: boolean; githubRepo?: string; githubLabels?: string; githubTitle?: string }) => {
-    const presentFlags = new Set<string>()
+    // Detect Hook Mode: parse stdin payload before touching any flags
+    const hookPayload = readHookPayload()
 
-    if (options.claudeSessionId !== undefined) {
-      presentFlags.add('--claude-session-id')
-    }
+    let sessionId: string
+    let cwd: string
+    let transcriptPath: string | undefined
+    let reader
 
-    const reader = selectReader(presentFlags)
+    if (hookPayload !== null) {
+      // Hook Mode: all inputs come from the stdin payload; Claude reader is always used
+      sessionId = hookPayload.session_id
+      transcriptPath = hookPayload.transcript_path
+      cwd = hookPayload.cwd
+      reader = claudeSessionReader
+    } else {
+      // Manual Mode: provider flag is required
+      const presentFlags = new Set<string>()
 
-    if (reader === null) {
-      if (presentFlags.size === 0) {
-        console.error('Error: no provider flag given. Use --claude-session-id <id>.')
-      } else {
-        console.error('Error: no reader registered for the given provider flag.')
+      if (options.claudeSessionId !== undefined) {
+        presentFlags.add('--claude-session-id')
       }
-      process.exit(1)
-    }
 
-    const sessionId = options.claudeSessionId as string
-    const cwd = process.cwd()
+      reader = selectReader(presentFlags)
+
+      if (reader === null) {
+        if (presentFlags.size === 0) {
+          console.error('Error: no provider flag given. Use --claude-session-id <id>.')
+        } else {
+          console.error('Error: no reader registered for the given provider flag.')
+        }
+        process.exit(1)
+      }
+
+      sessionId = options.claudeSessionId as string
+      cwd = process.cwd()
+    }
 
     try {
       // Step 1: Read + format session
-      const { manifest, markdown } = await reader.read({ sessionId, cwd })
+      const { manifest, markdown } = await reader.read({ sessionId, cwd, transcriptPath })
 
       // Significance gate — skip trivial sessions before incurring any Runner cost
       const minSessionChars = parseInt(options.minSessionChars ?? '1000', 10)
