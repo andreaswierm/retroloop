@@ -6,6 +6,7 @@ import { interpolate, injectSessionContent } from './prompt/interpolator.js'
 import { runClaude } from './runner/index.js'
 import { checkSignificance } from './gate/index.js'
 import { summarize, DEFAULT_SUMMARIZER_MODEL, DEFAULT_SUMMARIZER_THRESHOLD_CHARS } from './summarizer/index.js'
+import { writeFileOutput } from './output/file.js'
 import { basename } from 'node:path'
 
 // Register all available Session Readers
@@ -24,7 +25,8 @@ program
   .option('--force', 'Bypass the significance gate regardless of session size')
   .option('--summarizer-model <model>', `Model for the summarization pass (default: ${DEFAULT_SUMMARIZER_MODEL})`, DEFAULT_SUMMARIZER_MODEL)
   .option('--summarizer-threshold-chars <n>', `Session size above which summarization runs (default: ${DEFAULT_SUMMARIZER_THRESHOLD_CHARS})`, String(DEFAULT_SUMMARIZER_THRESHOLD_CHARS))
-  .action(async (options: { claudeSessionId?: string; promptFile?: string; model?: string; minSessionChars?: string; force?: boolean; summarizerModel?: string; summarizerThresholdChars?: string }) => {
+  .option('--output-file <path>', 'Write runner output to this path. Supports {{SESSION_ID}} substitution')
+  .action(async (options: { claudeSessionId?: string; promptFile?: string; model?: string; minSessionChars?: string; force?: boolean; summarizerModel?: string; summarizerThresholdChars?: string; outputFile?: string }) => {
     const presentFlags = new Set<string>()
 
     if (options.claudeSessionId !== undefined) {
@@ -93,8 +95,17 @@ program
         model: options.model,
       })
 
-      // Step 7: Print Runner stdout verbatim
+      // Step 7: Print Runner stdout verbatim (always)
       process.stdout.write(result.stdout)
+
+      // Step 8: Write to file if --output-file is set
+      if (options.outputFile) {
+        writeFileOutput({
+          pathTemplate: options.outputFile,
+          sessionId: manifest.sessionId,
+          content: result.stdout,
+        })
+      }
 
       if (result.exitCode !== 0) {
         process.exit(result.exitCode)
