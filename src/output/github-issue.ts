@@ -1,6 +1,20 @@
 import { spawnSync } from 'node:child_process'
 
 /**
+ * Checks whether the `gh` CLI is available on PATH.
+ *
+ * Throws a clear, actionable error when it is not found.
+ */
+export function assertGhCli(): void {
+  const result = spawnSync('gh', ['--version'], { encoding: 'utf8' })
+  if (result.error != null || result.status === null) {
+    throw new Error(
+      'gh CLI not found. Install it from https://cli.github.com'
+    )
+  }
+}
+
+/**
  * Parses a GitHub remote URL (HTTPS or SSH) and returns `owner/repo`.
  *
  * Supported formats:
@@ -78,6 +92,8 @@ export interface GithubIssueOptions {
  * Throws if `gh issue create` exits with a non-zero code.
  */
 export function createGithubIssue({ repo, title, labels, body }: GithubIssueOptions): string {
+  assertGhCli()
+
   const result = spawnSync(
     'gh',
     ['issue', 'create', '--repo', repo, '--title', title, '--label', labels, '--body', body],

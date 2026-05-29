@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { registerReader, selectReader } from './readers/registry.js'
+import { registerReader, selectReader, getRegisteredReaders } from './readers/registry.js'
 import { claudeSessionReader } from './readers/claude/index.js'
 import { loadPrompt } from './prompt/loader.js'
 import { interpolate, injectSessionContent } from './prompt/interpolator.js'
@@ -58,8 +58,14 @@ program
       reader = selectReader(presentFlags)
 
       if (reader === null) {
+        const registered = getRegisteredReaders()
         if (presentFlags.size === 0) {
-          console.error('Error: no provider flag given. Use --claude-session-id <id>.')
+          const providerList = registered
+            .map((r) => `  ${r.flag} <id>  (${r.provider})`)
+            .join('\n')
+          console.error(
+            `Error: no provider flag given. Use one of:\n${providerList}`
+          )
         } else {
           console.error('Error: no reader registered for the given provider flag.')
         }

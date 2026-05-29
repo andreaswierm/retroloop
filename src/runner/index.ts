@@ -1,4 +1,18 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+
+/**
+ * Checks whether the `claude` CLI is available on PATH.
+ *
+ * Throws a clear, actionable error when it is not found.
+ */
+export function assertClaudeCli(): void {
+  const result = spawnSync('claude', ['--version'], { encoding: 'utf8' })
+  if (result.error != null || result.status === null) {
+    throw new Error(
+      'claude CLI not found. Install it from https://claude.ai/download'
+    )
+  }
+}
 
 /**
  * Options for the Runner.
@@ -31,6 +45,8 @@ export interface RunnerResult {
  * Runner stdout is collected and returned verbatim.
  */
 export async function runClaude(options: RunnerOptions): Promise<RunnerResult> {
+  assertClaudeCli()
+
   const { prompt, cwd, model } = options
 
   const args = ['-p', prompt]
